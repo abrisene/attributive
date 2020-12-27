@@ -1,0 +1,44 @@
+{
+  "name": "attributive",
+  "version": "0.0.1",
+  "description": "Computational Graph module.",
+  "keywords": [],
+  "main": "lib/src/index.js",
+  "types": "lib/src/index.d.ts",
+  "files": [
+    "build/src"
+  ],
+  "author": "David Robinson <dr@monetise.io> (http://www.monetise.io)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/abrisene/attributive/issues"
+  },
+  "homepage": "https://github.com/abrisene/attributive#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abrisene/attributive.git"
+  },
+  "scripts": {
+    "test": "jest",
+    "lint": "gts lint",
+    "clean": "gts clean",
+    "compile": "tsc",
+    "fix": "gts fix",
+    "prepare": "npm run compile",
+    "pretest": "npm run compile",
+    "posttest": "npm run lint",
+    "dev": "npm run compile && node ./build/src"
+  },
+  "devDependencies": {
+    "@types/jest": "26.0.19",
+    "@types/node": "14.11.2",
+    "graphology-types": "0.19.1",
+    "gts": "3.0.3",
+    "jest": "26.6.3",
+    "ts-jest": "26.4.4",
+    "typescript": "4.0.3"
+  },
+  "dependencies": {
+    "graphology": "0.19.2"
+  }
+}
