@@ -9,7 +9,6 @@
 
 import {operations, OperationKey} from './operations';
 import {DirectedGraph} from 'graphology';
-// import { asyncForEach } from './utilities';
 
 /*
  # Interfaces
@@ -63,51 +62,94 @@ export class ComputeGraph {
     this._initialized = false;
   }
 
+  /**
+   * Returns an array of dirty nodes.
+   */
   protected getDirtyNodes() {
     return this._graph
       .nodes()
       .filter(n => this._graph.getNodeAttribute(n, 'dirty'));
   }
 
+  /**
+   * Sets the dirty flag on descendants of the node.
+   * Also sets the node as dirty.
+   * @param node ID of the node to set dependencies as dirty.
+   */
   protected async setDescendantsDirty(node: string) {
     return this.getDescendants(node, n => this.setNodeDirty(n));
   }
 
+  /**
+   * Returns whether or not a node is dirty.
+   * @param node ID of the node.
+   */
   protected getNodeDirty(node: string) {
     return this._graph.getNodeAttribute(node, 'dirty');
   }
 
+  /**
+   * Sets the dirty flag on a node.
+   * @param node ID of the node.
+   * @param dirty Status of the flag to set.
+   */
   protected setNodeDirty(node: string, dirty = true) {
     return this._graph.setNodeAttribute(node, 'dirty', dirty);
   }
 
+  /**
+   * Returns the value of a node.
+   * @param node ID of the node.
+   */
   protected getNodeValue(node: string) {
     return this._graph.getNodeAttribute(node, 'value');
   }
 
+  /**
+   * Directly sets the value of the node.
+   * NOT USER FACING: this does not trigger updates. In most cases setValue / setValues should be used.
+   * @param node
+   * @param value
+   */
   protected setNodeValue(node: string, value: number) {
     this._values[node] = value;
     return this._graph.setNodeAttribute(node, 'value', value);
   }
 
-  protected async update(queue?: string[], iteration = 0): Promise<undefined> {
+  /**
+   * Recursive method to update the ComputeGraph. Works down a queue of dirty nodes.
+   * Will move a node to the end of the queue if it cannot be updated and try later.
+   * Ends when the queue is empty.
+   * @param queue Queue of nodes to update.
+   * @param iteration Recursive iteration count.
+   */
+  protected async update(queue?: string[], iteration = 0): Promise<void> {
     try {
+      // Populate the queue - with dirty nodes if none is defined - and get the next node.
       const nextQueue = queue ? queue : this.getDirtyNodes();
       const nextNode = nextQueue.shift();
 
+      // Update the ndoe, or push it to the end of the queue if the update is unsuccessful.
       if (nextNode !== undefined) {
         const updateSuccessful = await this.updateNode(nextNode);
         if (!updateSuccessful) nextQueue.push(nextNode);
       }
 
-      if (nextQueue.length === 0 || iteration > 20) return;
-      return this.update(nextQueue, iteration + 1);
+      // If the queue is empty or we've reached max iteration, then exit, otherwise recurse.
+      return nextQueue.length === 0 || iteration > 20
+        ? undefined
+        : this.update(nextQueue, iteration + 1);
     } catch (err) {
       console.error(err);
       return;
     }
   }
 
+  /**
+   * Updates / Calculates a node and sets it clean.
+   * Returns false if the update cannot be performed.
+   * @param node Node to update.
+   */
   protected async updateNode(node: string) {
     try {
       const attributes = this._graph.getNodeAttributes(node);
@@ -133,7 +175,6 @@ export class ComputeGraph {
       }
 
       this.setNodeDirty(node, false);
-      // console.log(`${node}: ${this.getNodeValue(node)}`);
       return true;
     } catch (err) {
       console.error(err);
@@ -141,13 +182,21 @@ export class ComputeGraph {
     }
   }
 
+  /**
+   * Recurses through the descendants / ancestors of a node and returns an array of their ids.
+   * @param node ID of the node to start from.
+   * @param descendants If true will recurse through descendants. If false will recurse ancestors.
+   * @param callbackFn Callback function called on each iterated node.
+   * @param queue Queue containing ids of nodes to recurse. This should not be set manually.
+   * @param pos Iterator: Current position in the queue. This should not be set.
+   */
   protected async recurseNeighbors(
     node: string,
     descendants = true,
     callbackFn: (n: string) => void,
     queue = [node] as string[],
     pos = 0
-  ): Promise<string[] | undefined> {
+  ): Promise<string[] | void> {
     try {
       await callbackFn(node);
       const nodeNeighbors = descendants
@@ -171,6 +220,9 @@ export class ComputeGraph {
     }
   }
 
+  /**
+   * Initializes the Graph.
+   */
   async init() {
     try {
       await this.update();
@@ -182,6 +234,9 @@ export class ComputeGraph {
     }
   }
 
+  /**
+   * Gets the values of the nodes on the Graph.
+   */
   getValues() {
     return {...this._values};
   }
@@ -190,7 +245,6 @@ export class ComputeGraph {
     try {
       const operations = Object.keys(values).map(async key => {
         this.setNodeValue(key, values[key]);
-        // await this.getDescendants(key, n => this.setNodeDirty(n));
         await this.setDescendantsDirty(key);
       });
       await Promise.all(operations);
@@ -202,14 +256,26 @@ export class ComputeGraph {
     }
   }
 
+  /**
+   * Gets the value of a node.
+   * @param key ID of the node to return the value of.
+   */
   getValue(key: string) {
     return this._values[key];
   }
 
+  /**
+   * Sets the value of a node. Triggers updates.
+   * @param key ID of the node to update.
+   * @param value Value to set the node to.
+   */
   async setValue(key: string, value: number) {
     return this.setValues({[key]: value});
   }
 
+  /**
+   * Adds a node.
+   */
   async addNode(
     {
       id,
@@ -228,23 +294,16 @@ export class ComputeGraph {
       if (value !== undefined) this.setNodeValue(id, value);
 
       // Add the Edges.
-      if (sources !== undefined) {
-        sources.forEach(s => {
-          this.addEdge(s, id);
-        });
-      }
+      const edges = [] as string[][];
+      if (sources !== undefined) sources.forEach(n => edges.push([n, id]));
+      if (targets !== undefined) targets.forEach(n => edges.push([id, n]));
+      if (edges.length > 0) await this.addEdges(edges, false);
 
-      if (targets !== undefined) {
-        targets.forEach(t => {
-          this.addEdge(id, t);
-        });
-      }
-
+      // Set the node's descendants as dirty.
       await this.setDescendantsDirty(id);
 
-      if (shouldUpdate) {
-        await this.update();
-      }
+      // Update if necessary.
+      if (shouldUpdate && this._initialized) await this.update();
 
       return;
     } catch (err) {
@@ -253,16 +312,21 @@ export class ComputeGraph {
     }
   }
 
+  /**
+   * Adds an array of nodes.
+   * @param nodes Array of nodes to add.
+   * @param shouldUpdate If true this will update the graph after adding the nodes.
+   */
   async addNodes(nodes: IAddVertexConfig[], shouldUpdate = false) {
     try {
-      nodes.forEach(n => {
-        this.addNode(n, false);
-      });
-
-      if (shouldUpdate) {
-        await this.update();
+      // Add the Nodes.
+      for (const n of nodes) {
+        await this.addNode(n, false);
       }
 
+      // Update if necessary.
+      if (shouldUpdate && this._initialized) await this.update();
+
       return;
     } catch (err) {
       console.error(err);
@@ -270,32 +334,71 @@ export class ComputeGraph {
     }
   }
 
-  addEdge(source: string, target: string) {
+  /**
+   * Adds an edge.
+   * @param source ID of the originating node.
+   * @param target ID of the ending node.
+   * @param shouldUpdate If true this will update the graph after adding the edge.
+   */
+  async addEdge(source: string, target: string, shouldUpdate = false) {
     try {
+      // Add the Edge
       this._graph.addDirectedEdge(source, target);
+
+      // Set Descendants as Dirty
+      await this.setDescendantsDirty(source);
+
+      // Update if necessary.
+      if (shouldUpdate && this._initialized) await this.update();
+
+      return;
     } catch (err) {
       console.error(err);
+      return;
     }
   }
 
-  addEdges(edges: [string, string][]) {
+  /**
+   * Adds an array of edges.
+   * @param edges Array of edges.
+   * @param shouldUpdate If true this will update the graph after adding the edge.
+   */
+  async addEdges(edges: string[][], shouldUpdate = false) {
     try {
-      edges.forEach(e => {
-        this.addEdge(e[0], e[1]);
-      });
+      // Add the Edges
+      for (const e of edges) {
+        await this.addEdge(e[0], e[1], false);
+      }
+
+      // Update if necessary.
+      if (shouldUpdate && this._initialized) await this.update();
     } catch (err) {
       console.error(err);
+      return;
     }
   }
 
+  /**
+   * Recurses through a nodes descendants.
+   * @param node
+   * @param callbackFn
+   */
   async getDescendants(node: string, callbackFn: (n: string) => void) {
     return this.recurseNeighbors(node, true, callbackFn);
   }
 
+  /**
+   * Recurses through a nodes ancestors.
+   * @param node
+   * @param callbackFn
+   */
   async getAncestors(node: string, callbackFn: (n: string) => void) {
     return this.recurseNeighbors(node, false, callbackFn);
   }
 
+  /**
+   * Exports the graph.
+   */
   export() {
     return this._graph.export();
   }

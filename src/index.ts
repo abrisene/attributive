@@ -6,5 +6,5 @@
  # Module Exports
  */
 
-export * from './graph';
+export * from './cgraph';
 export * from './operations';
