@@ -13,6 +13,7 @@ Example use cases:
 
 - https://www.freecodecamp.org/news/8-essential-graph-algorithms-in-javascript
 - https://medium.com/kineviz-blog/visualizing-node-link-graphs-84a40a9b2fcc
+- https://advancedweb.hu/how-to-use-async-functions-with-array-foreach-in-javascript/
 
 ## Primitives ##
 

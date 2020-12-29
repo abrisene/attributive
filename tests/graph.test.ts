@@ -1,5 +1,5 @@
 /*
- # graph.test.js
+ # graph.tests.js
  # Attributive Graph Tests
  */
 
@@ -7,59 +7,136 @@
  # Module Dependencies
  */
 
-import {ComputeGraph, VertexType} from '../src';
+import {EdgeDirections, Graph, IGraphConfig} from '../src';
 
 /**
  # Variables
  */
 
-const simpleGraph = [
-  {id: 'node_scalar_a', value: 2},
-  {id: 'node_scalar_b', value: 5},
-  {
-    id: 'node_sum_a',
-    type: VertexType.compute,
-    operation: 'SUM',
-    sources: ['node_scalar_a', 'node_scalar_b'],
-  },
-  {id: 'node_output', sources: ['node_sum_a']},
+const v0 = ['a', 'b', 'c'];
+const e0 = [
+  ['a', 'b'],
+  ['a', 'c'],
+  ['b', 'c'],
 ];
+
+const g0Init = {
+  id: 'g0',
+};
+
+const g1Init = {
+  id: 'g1',
+  directed: true,
+  acyclic: false,
+  vertices: v0,
+  edges: e0,
+} as IGraphConfig;
 
 /**
  # Tests
  */
 
-test('Basic ComputeGraph can be created.', async () => {
-  const g = new ComputeGraph();
-  await g.addNodes(simpleGraph);
-  await g.init();
+test('Graph can be initialized from scratch.', () => {
+  const g = Graph.initGraph(g0Init);
+  expect(g.id).toEqual(g0Init.id);
+  expect(g.directed).toEqual(true);
+  expect(g.adjacency).toEqual({});
+});
 
-  // Get Values
-  expect(g.getValues()).toEqual({
-    node_scalar_a: 2,
-    node_scalar_b: 5,
-    node_sum_a: 7,
-    node_output: 7,
+test('Graph methods work properly.', () => {
+  const g = Graph.initGraph(g1Init);
+  expect(g.id).toEqual(g1Init.id);
+  expect(g.directed).toEqual(g1Init.directed);
+  expect(g.acyclic).toEqual(g1Init.acyclic);
+  expect(Object.keys(g.adjacency)).toEqual(g1Init.vertices);
+});
+
+test('Vertex and Edge methods work properly.', () => {
+  // Add Vertices
+  let g = Graph.initGraph(g0Init);
+  g = Graph.addVertex(g, 'v0');
+  g = Graph.addVertices(g, ['v1', 'v2']);
+
+  expect(Object.keys(g.adjacency)).toEqual(['v0', 'v1', 'v2']);
+
+  // Adding Edges
+  g = Graph.addEdge(g, ['v0', 'v1', 0.5]);
+
+  expect(g.adjacency.v0.v1).toBeDefined();
+  expect(g.adjacency.v0.v1).toEqual([
+    {direction: EdgeDirections.OUT, weight: 0.5},
+  ]);
+  expect(g.adjacency.v1.v0).toBeDefined();
+  expect(g.adjacency.v1.v0).toEqual([
+    {direction: EdgeDirections.IN, weight: 0.5},
+  ]);
+
+  // Removing Vertices
+  const removeIds = ['v0', 'v2'];
+  g = Graph.removeVertices(g, removeIds);
+
+  expect(Object.keys(g.adjacency)).toEqual(['v1']);
+  expect(Graph.getMissingVertices(g, removeIds)).toEqual(removeIds);
+  expect(g.adjacency.v1.v0).toBeUndefined();
+});
+
+test('Edge methods work properly.', () => {
+  // Create Graph, add Vertices, Edges
+  let g = Graph.initGraph(g0Init);
+  g = Graph.addVertices(g, ['v0', 'v1', 'v2', 'v3', 'v4']);
+  g = Graph.addEdges(g, [
+    ['v0', 'v1'],
+    ['v1', 'v2'],
+    ['v2', 'v3'],
+    ['v3', 'v4'],
+    ['v4', 'v3', 0.25],
+  ]);
+
+  // Test Single Edge Adjacency
+  expect(g.adjacency.v1).toEqual({
+    v0: [{weight: 1, direction: EdgeDirections.IN}],
+    v2: [{weight: 1, direction: EdgeDirections.OUT}],
   });
 
-  // Set Values
-  await g.setValues({node_scalar_a: 7, node_scalar_b: 8});
-  expect(g.getValues()).toEqual({
-    node_scalar_a: 7,
-    node_scalar_b: 8,
-    node_sum_a: 15,
-    node_output: 15,
+  // Test Multi-Edge Adjacency
+  expect(g.adjacency.v3).toEqual({
+    v2: [{weight: 1, direction: EdgeDirections.IN}],
+    v4: [
+      {weight: 1, direction: EdgeDirections.OUT},
+      {weight: 0.25, direction: EdgeDirections.IN},
+    ],
   });
 
-  await g.addNode(
-    {id: 'node_scalar_c', value: 10, targets: ['node_sum_a']},
-    true
-  );
-  expect(g.getValues()).toEqual({
-    node_scalar_a: 7,
-    node_scalar_b: 8,
-    node_scalar_c: 10,
-    node_sum_a: 25,
-    node_output: 25,
+  // Test Remove Edges
+  g = Graph.removeEdges(g, [
+    ['v0', 'v1'],
+    ['v4', 'v3'],
+  ]);
+
+  expect(g.adjacency.v0).toEqual({});
+  expect(g.adjacency.v1).toEqual({
+    v2: [{weight: 1, direction: EdgeDirections.OUT}],
   });
+  expect(g.adjacency.v3).toEqual({
+    v2: [{weight: 1, direction: EdgeDirections.IN}],
+    v4: [{weight: 1, direction: EdgeDirections.OUT}],
+  });
+  expect(g.adjacency.v4).toEqual({
+    v3: [{weight: 1, direction: EdgeDirections.IN}],
+  });
+});
+
+test('Graph methods are immutable.', () => {
+  const g = Graph.initGraph(g0Init);
+  const gCopy = Graph.cloneGraph(g);
+
+  expect(gCopy).toStrictEqual(g);
+
+  Graph.addVertices(g, ['v1', 'v2', 'v3']);
+  Graph.addEdges(g, [
+    ['v1', 'v2'],
+    ['v2', 'v1'],
+    ['v2', 'v3'],
+  ]);
+  expect(g.adjacency).toEqual({});
 });
