@@ -51,7 +51,7 @@ test('Graph methods work properly.', () => {
   expect(Object.keys(g.adjacency)).toEqual(g1Init.vertices);
 });
 
-test('Vertex and Edge methods work properly.', () => {
+test('Vertex methods work properly.', () => {
   // Add Vertices
   let g = Graph.initGraph(g0Init);
   g = Graph.addVertex(g, 'v0');
@@ -124,6 +124,66 @@ test('Edge methods work properly.', () => {
   expect(g.adjacency.v4).toEqual({
     v3: [{weight: 1, direction: EdgeDirections.IN}],
   });
+
+  // Adding Vertices by defining Edges.
+  g = Graph.initGraph(g0Init);
+  g = Graph.addEdges(g, [
+    ['v0', 'v1'],
+    ['v1', 'v2'],
+    ['v2', 'v3'],
+    ['v3', 'v4'],
+    ['v4', 'v3', 0.25],
+  ]);
+
+  expect(Object.keys(g.adjacency)).toEqual(['v0', 'v1', 'v2', 'v3', 'v4']);
+
+  expect(g.adjacency.v1).toEqual({
+    v0: [{weight: 1, direction: EdgeDirections.IN}],
+    v2: [{weight: 1, direction: EdgeDirections.OUT}],
+  });
+
+  expect(g.adjacency.v3).toEqual({
+    v2: [{weight: 1, direction: EdgeDirections.IN}],
+    v4: [
+      {weight: 1, direction: EdgeDirections.OUT},
+      {weight: 0.25, direction: EdgeDirections.IN},
+    ],
+  });
+});
+
+test('Traversal methods function properly.', () => {
+  let g = Graph.initGraph({id: 'g0'});
+  g = Graph.addEdges(g, [
+    ['v0', 'v1'],
+    ['v0', 'v2'],
+    ['v0', 'v3'],
+    ['v1', 'v2'],
+    ['v2', 'v3'],
+    ['v3', 'v4'],
+    ['v4', 'v5'],
+    ['v5', 'v6'],
+  ]);
+
+  // Neighbors
+  expect(Graph.getVertexNeighbors(g, 'v0')).toEqual(['v1', 'v2', 'v3']);
+
+  // Out Neighbors
+  expect(Graph.getVertexOutputs(g, 'v0')).toEqual(['v1', 'v2', 'v3']);
+
+  // In Neighbors
+  expect(Graph.getVertexInputs(g, 'v2')).toEqual(['v0', 'v1']);
+
+  // Recursive Neighbors
+  let r = Graph.getVertexNeighborsRecursive(g, 'v1');
+  expect(r).toEqual(Object.keys(g.adjacency).filter(v => v !== 'v1'));
+
+  // Recursive Out
+  r = Graph.getVertexDescendants(g, 'v1');
+  expect(r).toEqual(['v2', 'v3', 'v4', 'v5', 'v6']);
+
+  // Recursive In
+  r = Graph.getVertexAncestors(g, 'v2');
+  expect(r).toEqual(['v0', 'v1']);
 });
 
 test('Graph methods are immutable.', () => {
@@ -132,7 +192,7 @@ test('Graph methods are immutable.', () => {
 
   expect(gCopy).toStrictEqual(g);
 
-  Graph.addVertices(g, ['v1', 'v2', 'v3']);
+  Graph.addVertices(g, ['v1', 'v2', 'v3', 'v4']);
   Graph.addEdges(g, [
     ['v1', 'v2'],
     ['v2', 'v1'],

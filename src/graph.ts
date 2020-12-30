@@ -9,8 +9,16 @@
 
 /****************
 
-- Pure reducer functions for graph initialization / manipulation.
+SUMMARY:
+- Pure reducer functions for graph initialization / manipulation / analysis.
+- All functions should be immutable.
 - Supports directed and undirected graphs.
+
+TESTING:
+- Basic coverage of all methods.
+- Could use more tests on undirected graphs.
+
+TODO:
 - Doesn't currently support / enforce acyclic graphs.
 - PROBABLY DOESN'T SUPPORT PARALLEL EDGES.
 
@@ -26,8 +34,10 @@ import * as _ from 'lodash';
  # Types
  */
 
-export const EdgeDirections = {IN: 'IN', OUT: 'OUT', ANY: 'ANY'};
-export type EdgeDirection = keyof typeof EdgeDirections;
+export type EdgeDirection = 'IN' | 'OUT' | 'ANY';
+export const EdgeDirections = {IN: 'IN', OUT: 'OUT', ANY: 'ANY'} as {
+  [key: string]: EdgeDirection;
+};
 
 /*
  # Interfaces
@@ -101,6 +111,54 @@ function initGraph({
 function cloneGraph(graph: IGraph) {
   return _.cloneDeep(graph) as IGraph;
 }
+
+/**
+ * TODO / WIP:
+ * Merges multiple graphs into the first one.
+ * IMPORTANT: Assumes all graphs are of the same directed / undirected type.
+ * @param graphs An array of graphs to merge.
+ */
+/* function mergeGraphs(graphs: IGraph[]) {
+  const g0 = graphs.shift() as IGraph;
+  const result = cloneGraph(g0);
+  const edges: [string, string, number?][] = [];
+  graphs.forEach((g) => {
+    // Iterate through the adjacency list and construct edges.
+    Object.keys(g.adjacency).forEach((vA) => {
+      Object.keys(g.adjacency[vA]).forEach((vB) => {
+        // Add each of the edges.
+      });
+    });
+  });
+}; */
+
+/**
+ * TODO:
+ * Returns a series of subgraphs consisting of the graph's components and
+ * provides a graph where each vertex represents a subcomponent.
+ * @param graph The graph to split.
+ */
+/* function splitComponents(graph: IGraph) {
+  // TODO
+} */
+
+/**
+ * Returns an array of the vertices in the graph.
+ * @param graph The graph containing the vertices.
+ */
+function getVertices(graph: IGraph) {
+  return Object.keys(graph.adjacency);
+}
+
+/**
+ * TODO:
+ * Returns an array of the edges in the graph.
+ * @param graph The graph containing the edges.
+ */
+/* function getEdges(graph: IGraph) {
+  const result: [string, string, number?][] = [];
+
+} */
 
 /**
  * Returns if any vertices in a provided array are missing from the graph.
@@ -208,6 +266,24 @@ function getVertexNeighbors(
 }
 
 /**
+ * Finds neighbors of a vertex attached by outgoing edges.
+ * @param graph The graph to perform the operation on.
+ * @param vertex The vertex to find the neighbors of.
+ */
+function getVertexOutputs(graph: IGraph, vertex: string) {
+  return getVertexNeighbors(graph, vertex, EdgeDirections.OUT);
+}
+
+/**
+ * Finds neighbors of a vertex attached by incoming edges.
+ * @param graph The graph to perform the operation on.
+ * @param vertex The vertex to find the neighbors of.
+ */
+function getVertexInputs(graph: IGraph, vertex: string) {
+  return getVertexNeighbors(graph, vertex, EdgeDirections.IN);
+}
+
+/**
  * Recurses through the ancestors / descendants of a vertex and returns an array of visited vertices.
  * @param graph The graph to perform the operation on.
  * @param vertex The vertex to recurse from.
@@ -218,27 +294,42 @@ function getVertexNeighborsRecursive(
   vertex: string,
   direction?: EdgeDirection
 ) {
-  // TODO
+  const queue = [vertex];
+  for (let i = 0; i < queue.length; i += 1) {
+    const v = queue[i];
+    const neighbors = getVertexNeighbors(graph, v, direction);
+    if (neighbors !== undefined) {
+      neighbors.forEach(n => {
+        if (!queue.includes(n)) queue.push(n);
+      });
+    }
+  }
+  queue.shift();
+  return queue;
 }
 
 /**
- *
+ * Recurses through the descendants of a vertex and returns an array of visited vertices.
  * @param graph The graph to perform the operation on.
- * @param vertex
+ * @param vertex The vertex to recurse from.
  */
-/* function getVertexInputs(graph: IGraph, vertex: string) {
-
-} */
+function getVertexDescendants(graph: IGraph, vertex: string) {
+  return getVertexNeighborsRecursive(graph, vertex, EdgeDirections.OUT);
+}
 
 /**
- *
+ * Recurses through the ancestors of a vertex and returns an array of visited vertices.
  * @param graph The graph to perform the operation on.
  * @param vertex
  */
-/* function getVertexOutputs(graph: IGraph, vertex: string) {
-  const adjacencies = graph.adjacency[vertex];
-  return adjacencies ?
-} */
+/**
+ * Recurses through the descendants of a vertex and returns an array of visited vertices.
+ * @param graph The graph to perform the operation on.
+ * @param vertex The vertex to recurse from.
+ */
+function getVertexAncestors(graph: IGraph, vertex: string) {
+  return getVertexNeighborsRecursive(graph, vertex, EdgeDirections.IN);
+}
 
 // Edge Methods
 
@@ -386,12 +477,18 @@ function removeEdges(graph: IGraph, edges: [string, string][]) {
 export const Graph = {
   initGraph,
   cloneGraph,
+  getVertices,
   getMissingVertices,
   addVertex,
   addVertices,
   removeVertex,
   removeVertices,
   getVertexNeighbors,
+  getVertexOutputs,
+  getVertexInputs,
+  getVertexNeighborsRecursive,
+  getVertexDescendants,
+  getVertexAncestors,
   addEdge,
   addEdges,
   removeEdge,
