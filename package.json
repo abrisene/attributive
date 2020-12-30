@@ -6,7 +6,7 @@
   "main": "lib/src/index.js",
   "types": "lib/src/index.d.ts",
   "files": [
-    "build/src"
+    "lib/src"
   ],
   "author": "David Robinson <dr@monetise.io> (http://www.monetise.io)",
   "license": "Apache-2.0",
