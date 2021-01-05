@@ -1,6 +1,6 @@
 /*
  # graph.ts
- # Attributive Graph Class
+ # Attributive Graph Reducers
  */
 
 /*
@@ -34,6 +34,8 @@ import * as _ from 'lodash';
  # Types
  */
 
+export type EdgeConfig = [string, string, number?];
+export type EdgeIdentity = [string, string];
 export type EdgeDirection = 'IN' | 'OUT' | 'ANY';
 export const EdgeDirections = {IN: 'IN', OUT: 'OUT', ANY: 'ANY'} as {
   [key: string]: EdgeDirection;
@@ -64,7 +66,7 @@ export interface IGraphConfig {
   directed?: boolean;
   acyclic?: boolean;
   vertices?: string[];
-  edges?: [string, string, number?][];
+  edges?: EdgeConfig[];
 }
 
 export interface IAdjacencyList {
@@ -121,7 +123,7 @@ function cloneGraph(graph: IGraph) {
 /* function mergeGraphs(graphs: IGraph[]) {
   const g0 = graphs.shift() as IGraph;
   const result = cloneGraph(g0);
-  const edges: [string, string, number?][] = [];
+  const edges: EdgeConfig[] = [];
   graphs.forEach((g) => {
     // Iterate through the adjacency list and construct edges.
     Object.keys(g.adjacency).forEach((vA) => {
@@ -156,7 +158,7 @@ function getVertices(graph: IGraph) {
  * @param graph The graph containing the edges.
  */
 /* function getEdges(graph: IGraph) {
-  const result: [string, string, number?][] = [];
+  const result: EdgeConfig[] = [];
 
 } */
 
@@ -341,7 +343,7 @@ function getVertexAncestors(graph: IGraph, vertex: string) {
  */
 function addEdge(
   graph: IGraph,
-  edge: [string, string, number?],
+  edge: EdgeConfig,
   strict = false
 ) {
   return addEdges(graph, [edge], strict);
@@ -355,7 +357,7 @@ function addEdge(
  */
 function addEdges(
   graph: IGraph,
-  edges: [string, string, number?][],
+  edges: EdgeConfig[],
   strict = false
 ) {
   try {
@@ -411,7 +413,7 @@ function addEdges(
  * @param graph The graph to perform the operation on.
  * @param edge The edge to be removed.
  */
-function removeEdge(graph: IGraph, edge: [string, string]) {
+function removeEdge(graph: IGraph, edge: EdgeIdentity) {
   return removeEdges(graph, [edge]);
 }
 
@@ -420,7 +422,7 @@ function removeEdge(graph: IGraph, edge: [string, string]) {
  * @param graph The graph to perform the operation on.
  * @param edges An array of edges to be removed.
  */
-function removeEdges(graph: IGraph, edges: [string, string][]) {
+function removeEdges(graph: IGraph, edges: EdgeIdentity[]) {
   try {
     const result = cloneGraph(graph);
 
